@@ -2,22 +2,14 @@
 
 MCP-сервер для [HuntFlow](https://huntflow.ru) ATS API v2 — вакансии, кандидаты, резюме, этапы воронки, причины отказа, комментарии, аккаунты. **11 инструментов, 2 промпта.**
 
+[![npm](https://img.shields.io/npm/v/@gaivoronsky/huntflow-mcp)](https://www.npmjs.com/package/@gaivoronsky/huntflow-mcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 Работает с HuntFlow v2 (`api.huntflow.ru` для РФ или `api.huntflow.ai` для международных аккаунтов). Транспорты: **stdio** и **streamable HTTP**. Все данные read-only, кроме добавления комментариев.
 
-## Установка (из исходника)
+## Установка
 
-```bash
-git clone https://github.com/Gaivoronsky/huntflow-mcp.git
-cd huntflow-mcp
-npm install
-npm run build      # → dist/
-```
-
-Сборка кладёт исполняемый код в `dist/`. Запускается через `node dist/index.js`.
-
-### Подключение к Claude Desktop
+### Через npx — Claude Desktop (рекомендуется)
 
 В `claude_desktop_config.json` (macOS: `~/Library/Application Support/Claude/`):
 
@@ -25,8 +17,8 @@ npm run build      # → dist/
 {
   "mcpServers": {
     "huntflow": {
-      "command": "/абсолютный/путь/к/node",
-      "args": ["/абсолютный/путь/к/huntflow-mcp/dist/index.js"],
+      "command": "npx",
+      "args": ["-y", "@gaivoronsky/huntflow-mcp"],
       "env": {
         "HUNTFLOW_TOKEN": "ваш-токен",
         "HUNTFLOW_BASE_URL": "https://api.huntflow.ai/v2"
@@ -36,7 +28,18 @@ npm run build      # → dist/
 }
 ```
 
-> Claude Desktop запускается из GUI и не наследует `PATH` оболочки — указывайте **абсолютный** путь к `node` (например, из nvm: `~/.nvm/versions/node/<версия>/bin/node`). После правки конфига полностью перезапустите приложение (⌘Q и заново).
+После правки конфига полностью перезапустите Claude Desktop (⌘Q и заново).
+
+### Из исходника (для разработки)
+
+```bash
+git clone https://github.com/Gaivoronsky/huntflow-mcp.git
+cd huntflow-mcp
+npm install
+npm run build      # → dist/
+```
+
+Запуск из собранного кода — `node dist/index.js`. Для подключения к Claude Desktop из исходника укажите в конфиге `"command"` = **абсолютный** путь к `node` (GUI не наследует `PATH` оболочки; напр. `~/.nvm/versions/node/<версия>/bin/node`) и `"args"` = `["/путь/к/huntflow-mcp/dist/index.js"]`.
 
 ### Streamable HTTP
 
