@@ -23,9 +23,9 @@ import {
 } from "./tools/comments.js";
 import { listAccountsSchema, handleListAccounts } from "./tools/accounts.js";
 
-const VERSION = "1.3.0";
+const VERSION = "1.4.0";
 const TOOL_COUNT = 11;
-const PROMPT_COUNT = 2;
+const PROMPT_COUNT = 3;
 
 export function createServer(): McpServer {
   const server = new McpServer({ name: "huntflow-mcp", version: VERSION });
@@ -80,7 +80,7 @@ export function createServer(): McpServer {
     addApplicantCommentSchema.shape,
     async (params) => ({ content: [{ type: "text", text: await handleAddApplicantComment(params) }] }));
 
-  // --- Skills / Prompts (2) ---
+  // --- Skills / Prompts (3) ---
 
   server.prompt("skill-applicants", "Кандидаты на вакансию — показать всех кандидатов, прикреплённых к указанной вакансии.",
     { account_id: z.string().describe("ID аккаунта"), vacancy_id: z.string().describe("ID вакансии") },
@@ -114,6 +114,37 @@ export function createServer(): McpServer {
             `Собери: название вакансии, дата создания, сколько дней открыта,`,
             `количество кандидатов на каждом этапе воронки, общая конверсия.`,
             `Формат: сначала карточка вакансии, потом воронка (этап -> кол-во), потом выводы.`,
+          ].join("\n"),
+        },
+      }],
+    })
+  );
+
+  server.prompt("skill-vacancy-analytics", "Аналитика по вакансии: дни в работе, кандидаты на этапах с заказчиком, сроки отправки CV клиенту.",
+    { account_id: z.string().describe("ID аккаунта"), vacancy_id: z.string().describe("ID вакансии") },
+    (args) => ({
+      messages: [{
+        role: "user" as const,
+        content: {
+          type: "text" as const,
+          text: [
+            `Собери аналитику по вакансии ${args.vacancy_id} в аккаунте ${args.account_id}. Для сроков используй сегодняшнюю дату.`,
+            ``,
+            `1) Дни в работе: get_vacancy (account_id=${args.account_id}, vacancy_id=${args.vacancy_id}) → возьми position и created. created = начало работы по вакансии. Метрика: сегодня − created в календарных днях.`,
+            ``,
+            `2) Карта этапов: list_stages (account_id=${args.account_id}). Определи по названиям:`,
+            `   - этапы «с заказчиком» — содержат заказчик/клиент/client/customer/hiring manager;`,
+            `   - этап «CV отправлено клиенту» — вроде «отправлен(о) заказчику/клиенту», «CV sent», «представлен клиенту», «submitted to client».`,
+            `   Если однозначно определить нельзя — покажи список этапов и СПРОСИ у пользователя, какие считать «с заказчиком» и какой = «CV отправлено», прежде чем продолжать.`,
+            ``,
+            `3) Кандидаты на этапах с заказчиком: list_applicants (account_id=${args.account_id}, vacancy=${args.vacancy_id}, count=30, page=1), затем листай page до total_pages. У каждого кандидата возьми из links[] звено с vacancy=${args.vacancy_id} → его status (текущий этап). Отбери тех, чей status входит в этапы «с заказчиком». Выведи: сколько всего и список (ФИО, email, текущий этап).`,
+            ``,
+            `4) Сроки отправки CV: ТОЛЬКО для кандидатов, дошедших до этапа «CV отправлено» (или дальше по воронке), вызови list_applicant_comments (account_id=${args.account_id}, applicant_id=<id>, all_types=true) и найди в журнале запись type=STATUS с переходом на этап «CV отправлено» по этой вакансии — возьми её дату (created). Срок = дата отправки − created вакансии (в днях). НЕ запрашивай логи по всем кандидатам подряд (лимит 10 запросов/сек) — только по дошедшим до заказчика. Кому CV ещё не отправляли — отметь.`,
+            ``,
+            `Формат отчёта:`,
+            `- Шапка: вакансия (название, ${args.vacancy_id}), создана <created>, в работе <N> дней.`,
+            `- Кандидаты у заказчика: таблица «кандидат → этап» + итог по этапам.`,
+            `- Сроки CV: таблица «кандидат → дата отправки клиенту → дней от старта» и строка «первый CV отправлен через <N> дней».`,
           ].join("\n"),
         },
       }],

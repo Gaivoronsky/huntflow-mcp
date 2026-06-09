@@ -1,6 +1,6 @@
 # huntflow-mcp
 
-MCP-сервер для [HuntFlow](https://huntflow.ru) ATS API v2 — вакансии, кандидаты, резюме, этапы воронки, причины отказа, комментарии, аккаунты. **11 инструментов, 2 промпта.**
+MCP-сервер для [HuntFlow](https://huntflow.ru) ATS API v2 — вакансии, кандидаты, резюме, этапы воронки, причины отказа, комментарии, аккаунты. **11 инструментов, 3 промпта.**
 
 [![npm](https://img.shields.io/npm/v/@gaivoronsky/huntflow-mcp)](https://www.npmjs.com/package/@gaivoronsky/huntflow-mcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -89,6 +89,7 @@ MCP-промпты для типовых сценариев рекрутинга
 |-------|----------|
 | `skill-applicants` | Кандидаты на вакансию — таблица с этапами и сводкой |
 | `skill-vacancy-stats` | Статистика по вакансии — воронка, сроки, конверсия |
+| `skill-vacancy-analytics` | Аналитика: дни в работе, кандидаты на этапах с заказчиком, сроки отправки CV клиенту |
 
 ## Разработка
 
