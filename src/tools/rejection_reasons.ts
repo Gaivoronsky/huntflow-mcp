@@ -1,9 +1,9 @@
 import { z } from "zod";
 import { hfGet } from "../client.js";
 
-// Справочник причин отказа — декодирует числовые links[].rejection_reason из карточек кандидатов.
+// Rejection reasons reference — decodes the numeric links[].rejection_reason values from applicant cards.
 export const listRejectionReasonsSchema = z.object({
-  account_id: z.number().describe("ID аккаунта HuntFlow"),
+  account_id: z.number().describe("HuntFlow account ID"),
 });
 
 export async function handleListRejectionReasons(

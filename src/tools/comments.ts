@@ -1,23 +1,23 @@
 import { z } from "zod";
 import { hfGet, hfRequest } from "../client.js";
 
-// Комментарии о кандидате — это записи журнала /logs с type=COMMENT.
-// Чтение: GET /logs. Создание: POST /logs. Редактирования/удаления в API v2 нет.
+// Applicant comments are /logs journal entries with type=COMMENT.
+// Reading: GET /logs. Creating: POST /logs. There is no editing/deletion in API v2.
 
 export const listApplicantCommentsSchema = z.object({
-  account_id: z.number().describe("ID аккаунта HuntFlow"),
-  applicant_id: z.number().describe("ID кандидата"),
+  account_id: z.number().describe("HuntFlow account ID"),
+  applicant_id: z.number().describe("Applicant ID"),
   all_types: z
     .boolean()
     .default(false)
-    .describe("Показать все типы записей журнала. По умолчанию только комментарии (type=COMMENT)"),
-  vacancy: z.number().optional().describe("Фильтр по ID вакансии (нельзя одновременно с personal)"),
+    .describe("Show all journal entry types. By default only comments (type=COMMENT)"),
+  vacancy: z.number().optional().describe("Filter by vacancy ID (cannot be used together with personal)"),
   personal: z
     .boolean()
     .optional()
-    .describe("Только личные заметки, не привязанные к вакансии (нельзя одновременно с vacancy)"),
-  count: z.number().int().min(1).max(100).default(30).describe("Кол-во на странице (макс 100)"),
-  page: z.number().int().min(1).default(1).describe("Номер страницы (нумерация с 1)"),
+    .describe("Only personal notes not tied to a vacancy (cannot be used together with vacancy)"),
+  count: z.number().int().min(1).max(100).default(30).describe("Items per page (max 100)"),
+  page: z.number().int().min(1).default(1).describe("Page number (1-based)"),
 });
 
 export async function handleListApplicantComments(
@@ -36,10 +36,10 @@ export async function handleListApplicantComments(
 }
 
 export const addApplicantCommentSchema = z.object({
-  account_id: z.number().describe("ID аккаунта HuntFlow"),
-  applicant_id: z.number().describe("ID кандидата"),
-  comment: z.string().min(1).max(65535).describe("Текст комментария"),
-  vacancy: z.number().optional().describe("Привязать комментарий к вакансии (ID). Без него — личная заметка"),
+  account_id: z.number().describe("HuntFlow account ID"),
+  applicant_id: z.number().describe("Applicant ID"),
+  comment: z.string().min(1).max(65535).describe("Comment text"),
+  vacancy: z.number().optional().describe("Tie the comment to a vacancy (ID). Without it — a personal note"),
 });
 
 export async function handleAddApplicantComment(

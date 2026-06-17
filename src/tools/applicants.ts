@@ -1,19 +1,19 @@
 import { z } from "zod";
 import { hfGet } from "../client.js";
 
-// --- Текстовый поиск кандидатов: GET /accounts/{id}/applicants/search (count ≤ 100) ---
-// Именно этот эндпоинт реально фильтрует по тексту. Поддерживает page и count до 100.
+// --- Text search for applicants: GET /accounts/{id}/applicants/search (count ≤ 100) ---
+// This is the endpoint that actually filters by text. Supports page and count up to 100.
 export const searchApplicantsSchema = z.object({
-  account_id: z.number().describe("ID аккаунта HuntFlow"),
-  q: z.string().optional().describe("Строка поиска (имя, email, текст резюме)"),
+  account_id: z.number().describe("HuntFlow account ID"),
+  q: z.string().optional().describe("Search string (name, email, resume text)"),
   field: z
     .enum(["all", "education", "experience", "position"])
     .default("all")
-    .describe("Где искать: all | education | experience | position"),
-  status: z.array(z.number()).optional().describe("Фильтр по ID статусов (этапов)"),
-  vacancy: z.array(z.number()).optional().describe("Фильтр по ID вакансий"),
-  count: z.number().int().min(1).max(100).default(30).describe("Кол-во на странице (макс 100)"),
-  page: z.number().int().min(1).default(1).describe("Номер страницы (нумерация с 1)"),
+    .describe("Where to search: all | education | experience | position"),
+  status: z.array(z.number()).optional().describe("Filter by status (stage) IDs"),
+  vacancy: z.array(z.number()).optional().describe("Filter by vacancy IDs"),
+  count: z.number().int().min(1).max(100).default(30).describe("Items per page (max 100)"),
+  page: z.number().int().min(1).default(1).describe("Page number (1-based)"),
 });
 
 export async function handleSearchApplicants(params: z.infer<typeof searchApplicantsSchema>): Promise<string> {
@@ -28,21 +28,21 @@ export async function handleSearchApplicants(params: z.infer<typeof searchApplic
   return JSON.stringify(result, null, 2);
 }
 
-// --- Листинг кандидатов с фильтром по вакансии/статусу: GET /accounts/{id}/applicants (count ≤ 30) ---
-// Нативно отдаёт кандидатов конкретной вакансии/этапа без выгрузки всей базы.
+// --- Listing applicants filtered by vacancy/status: GET /accounts/{id}/applicants (count ≤ 30) ---
+// Natively returns applicants of a specific vacancy/stage without dumping the entire database.
 export const listApplicantsSchema = z.object({
-  account_id: z.number().describe("ID аккаунта HuntFlow"),
-  vacancy: z.number().optional().describe("Фильтр по ID вакансии"),
+  account_id: z.number().describe("HuntFlow account ID"),
+  vacancy: z.number().optional().describe("Filter by vacancy ID"),
   status: z
     .number()
     .optional()
-    .describe("Фильтр по ID статуса (этапа). Нельзя одновременно с agreement_state"),
+    .describe("Filter by status (stage) ID. Cannot be used together with agreement_state"),
   agreement_state: z
     .enum(["not_sent", "sent", "accepted", "declined"])
     .optional()
-    .describe("Фильтр по согласию на обработку ПДн. Нельзя одновременно со status"),
-  count: z.number().int().min(1).max(30).default(30).describe("Кол-во на странице (макс 30)"),
-  page: z.number().int().min(1).default(1).describe("Номер страницы (нумерация с 1)"),
+    .describe("Filter by consent to personal data processing. Cannot be used together with status"),
+  count: z.number().int().min(1).max(30).default(30).describe("Items per page (max 30)"),
+  page: z.number().int().min(1).default(1).describe("Page number (1-based)"),
 });
 
 export async function handleListApplicants(params: z.infer<typeof listApplicantsSchema>): Promise<string> {
@@ -57,8 +57,8 @@ export async function handleListApplicants(params: z.infer<typeof listApplicants
 }
 
 export const getApplicantSchema = z.object({
-  account_id: z.number().describe("ID аккаунта"),
-  applicant_id: z.number().describe("ID кандидата"),
+  account_id: z.number().describe("Account ID"),
+  applicant_id: z.number().describe("Applicant ID"),
 });
 
 export async function handleGetApplicant(params: z.infer<typeof getApplicantSchema>): Promise<string> {

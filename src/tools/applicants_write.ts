@@ -1,52 +1,52 @@
 import { z } from "zod";
 import { hfRequest } from "../client.js";
 
-// --- Операции ЗАПИСИ по кандидатам ---
-// Создание карточки: POST /accounts/{id}/applicants (ApplicantCreateRequest, application/json).
-// Привязка к вакансии / постановка на этап: POST /accounts/{id}/applicants/{aid}/vacancy (AddApplicantToVacancyRequest).
-// ВАЖНО: POST в client.ts не ретраится намеренно — у HuntFlow нет идемпотентности, повтор создаёт дубль.
+// --- WRITE operations for applicants ---
+// Create card: POST /accounts/{id}/applicants (ApplicantCreateRequest, application/json).
+// Attach to vacancy / move to stage: POST /accounts/{id}/applicants/{aid}/vacancy (AddApplicantToVacancyRequest).
+// IMPORTANT: POST in client.ts is intentionally not retried — HuntFlow has no idempotency, a retry creates a duplicate.
 
-// Резюме внутри карточки (externals[]). files — массив ЦЕЛОЧИСЛЕННЫХ ID загруженных файлов
-// (из upload_resume → id). Подтверждено живой OpenAPI (ApplicantResumeCreate).
+// Resume inside the card (externals[]). files — an array of INTEGER IDs of uploaded files
+// (from upload_resume → id). Confirmed against the live OpenAPI (ApplicantResumeCreate).
 const externalSchema = z.object({
-  auth_type: z.string().optional().describe("Тип источника резюме, напр. NATIVE"),
-  account_source: z.number().optional().describe("ID источника резюме"),
-  files: z.array(z.number()).optional().describe("ID загруженных файлов (из upload_resume → id)"),
+  auth_type: z.string().optional().describe("Resume source type, e.g. NATIVE"),
+  account_source: z.number().optional().describe("Resume source ID"),
+  files: z.array(z.number()).optional().describe("IDs of uploaded files (from upload_resume → id)"),
   data: z
-    .object({ body: z.string().optional().describe("Текст резюме") })
+    .object({ body: z.string().optional().describe("Resume text") })
     .optional()
-    .describe("Содержимое резюме (например, распознанный текст из upload_resume → text)"),
+    .describe("Resume contents (e.g. the recognized text from upload_resume → text)"),
 });
 
 const socialSchema = z.object({
-  social_type: z.string().describe("Тип: telegram, skype, и т.п."),
-  value: z.string().describe("Значение (ник/идентификатор)"),
+  social_type: z.string().describe("Type: telegram, skype, etc."),
+  value: z.string().describe("Value (handle/identifier)"),
 });
 
 const siteSchema = z.object({
-  site_type: z.string().describe("Тип сайта"),
-  value: z.string().describe("URL/значение"),
+  site_type: z.string().describe("Site type"),
+  value: z.string().describe("URL/value"),
 });
 
 export const createApplicantSchema = z.object({
-  account_id: z.number().describe("ID аккаунта HuntFlow"),
-  first_name: z.string().min(1).describe("Имя (обязательно)"),
-  last_name: z.string().min(1).describe("Фамилия (обязательно)"),
-  middle_name: z.string().optional().describe("Отчество"),
-  phone: z.string().optional().describe("Телефон"),
+  account_id: z.number().describe("HuntFlow account ID"),
+  first_name: z.string().min(1).describe("First name (required)"),
+  last_name: z.string().min(1).describe("Last name (required)"),
+  middle_name: z.string().optional().describe("Middle name"),
+  phone: z.string().optional().describe("Phone"),
   email: z.string().email().optional().describe("Email"),
-  position: z.string().optional().describe("Желаемая должность"),
-  company: z.string().optional().describe("Текущая/последняя компания"),
-  money: z.string().optional().describe('Зарплатные ожидания строкой, напр. "200000 руб"'),
+  position: z.string().optional().describe("Desired position"),
+  company: z.string().optional().describe("Current/last company"),
+  money: z.string().optional().describe('Salary expectations as a string, e.g. "200000 RUB"'),
   birthday: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .optional()
-    .describe("Дата рождения ISO YYYY-MM-DD (одно поле, НЕ day/month/year)"),
-  photo: z.number().optional().describe("ID загруженного фото (из upload_resume → id)"),
-  externals: z.array(externalSchema).optional().describe("Резюме кандидата (текст и/или ID файлов)"),
-  social: z.array(socialSchema).optional().describe("Соцсети/мессенджеры"),
-  site: z.array(siteSchema).optional().describe("Сайты/ссылки"),
+    .describe("Date of birth ISO YYYY-MM-DD (single field, NOT day/month/year)"),
+  photo: z.number().optional().describe("ID of the uploaded photo (from upload_resume → id)"),
+  externals: z.array(externalSchema).optional().describe("Applicant's resume (text and/or file IDs)"),
+  social: z.array(socialSchema).optional().describe("Social networks/messengers"),
+  site: z.array(siteSchema).optional().describe("Sites/links"),
 });
 
 export async function handleCreateApplicant(
@@ -62,19 +62,19 @@ export async function handleCreateApplicant(
 }
 
 export const attachToVacancySchema = z.object({
-  account_id: z.number().describe("ID аккаунта HuntFlow"),
-  applicant_id: z.number().describe("ID кандидата (из create_applicant → id)"),
-  vacancy: z.number().describe("ID вакансии (обязательно)"),
-  status: z.number().describe("ID этапа воронки из list_stages (обязательно)"),
-  comment: z.string().optional().describe("Комментарий к переходу"),
-  rejection_reason: z.number().optional().describe("ID причины отказа (list_rejection_reasons) — для этапа отказа"),
-  fill_quota: z.number().optional().describe("ID квоты — для этапа найма"),
+  account_id: z.number().describe("HuntFlow account ID"),
+  applicant_id: z.number().describe("Applicant ID (from create_applicant → id)"),
+  vacancy: z.number().describe("Vacancy ID (required)"),
+  status: z.number().describe("Pipeline stage ID from list_stages (required)"),
+  comment: z.string().optional().describe("Comment for the transition"),
+  rejection_reason: z.number().optional().describe("Rejection reason ID (list_rejection_reasons) — for the rejection stage"),
+  fill_quota: z.number().optional().describe("Quota ID — for the hiring stage"),
   employment_date: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .optional()
-    .describe("Дата выхода на работу YYYY-MM-DD"),
-  files: z.array(z.number()).optional().describe("ID прикреплённых файлов"),
+    .describe("Employment start date YYYY-MM-DD"),
+  files: z.array(z.number()).optional().describe("IDs of attached files"),
 });
 
 export async function handleAttachApplicantToVacancy(

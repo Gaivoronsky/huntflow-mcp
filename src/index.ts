@@ -39,137 +39,137 @@ export function createServer(): McpServer {
 
   // --- Tools (14) ---
 
-  server.tool("list_accounts", "Список доступных аккаунтов HuntFlow.", listAccountsSchema.shape,
+  server.tool("list_accounts", "List of available HuntFlow accounts.", listAccountsSchema.shape,
     async () => ({ content: [{ type: "text", text: await handleListAccounts() }] }));
 
-  server.tool("list_vacancies", "Список вакансий (open/all), с пагинацией.", listVacanciesSchema.shape,
+  server.tool("list_vacancies", "List of vacancies (open/all), with pagination.", listVacanciesSchema.shape,
     async (params) => ({ content: [{ type: "text", text: await handleListVacancies(params) }] }));
 
-  server.tool("get_vacancy", "Полная информация о вакансии.", getVacancySchema.shape,
+  server.tool("get_vacancy", "Full information about a vacancy.", getVacancySchema.shape,
     async (params) => ({ content: [{ type: "text", text: await handleGetVacancy(params) }] }));
 
   server.tool(
     "list_applicants",
-    "Кандидаты аккаунта с фильтром по вакансии и/или статусу (этапу). Пагинация: page, count≤30. Для «кандидаты на вакансию X» передайте vacancy.",
+    "Account applicants filtered by vacancy and/or status (stage). Pagination: page, count≤30. For \"applicants for vacancy X\" pass vacancy.",
     listApplicantsSchema.shape,
     async (params) => ({ content: [{ type: "text", text: await handleListApplicants(params) }] }));
 
   server.tool(
     "search_applicants",
-    "Текстовый поиск кандидатов (имя/email/резюме). Пагинация: page, count≤100. Параметр q реально фильтрует.",
+    "Text search for applicants (name/email/resume). Pagination: page, count≤100. The q parameter actually filters results.",
     searchApplicantsSchema.shape,
     async (params) => ({ content: [{ type: "text", text: await handleSearchApplicants(params) }] }));
 
-  server.tool("get_applicant", "Полная карточка кандидата (external[], links[]).", getApplicantSchema.shape,
+  server.tool("get_applicant", "Full applicant card (external[], links[]).", getApplicantSchema.shape,
     async (params) => ({ content: [{ type: "text", text: await handleGetApplicant(params) }] }));
 
   server.tool(
     "get_applicant_resume",
-    "Резюме (CV) кандидата с телом. external_id берётся из get_applicant → external[].id.",
+    "Applicant resume (CV) with body. external_id is taken from get_applicant → external[].id.",
     getApplicantResumeSchema.shape,
     async (params) => ({ content: [{ type: "text", text: await handleGetApplicantResume(params) }] }));
 
-  server.tool("list_stages", "Этапы воронки подбора (статусы вакансии): код → название.", listStagesSchema.shape,
+  server.tool("list_stages", "Recruitment funnel stages (vacancy statuses): code → name.", listStagesSchema.shape,
     async (params) => ({ content: [{ type: "text", text: await handleListStages(params) }] }));
 
-  server.tool("list_rejection_reasons", "Справочник причин отказа: код → название.", listRejectionReasonsSchema.shape,
+  server.tool("list_rejection_reasons", "Directory of rejection reasons: code → name.", listRejectionReasonsSchema.shape,
     async (params) => ({ content: [{ type: "text", text: await handleListRejectionReasons(params) }] }));
 
   server.tool(
     "list_applicant_comments",
-    "Комментарии о кандидате (журнал, по умолчанию только type=COMMENT). Пагинация page/count≤100.",
+    "Comments about an applicant (log, by default only type=COMMENT). Pagination page/count≤100.",
     listApplicantCommentsSchema.shape,
     async (params) => ({ content: [{ type: "text", text: await handleListApplicantComments(params) }] }));
 
   server.tool(
     "add_applicant_comment",
-    "Добавить комментарий кандидату (операция ЗАПИСИ: создаёт запись в журнале; отредактировать/удалить через API нельзя).",
+    "Add a comment to an applicant (WRITE operation: creates a log entry; it cannot be edited or deleted via the API).",
     addApplicantCommentSchema.shape,
     async (params) => ({ content: [{ type: "text", text: await handleAddApplicantComment(params) }] }));
 
   server.tool(
     "create_applicant",
-    "Создать карточку кандидата (операция ЗАПИСИ: POST /applicants). Обязательны first_name+last_name. Резюме — текстом (externals[].data.body) и/или ID файлов из upload_resume. Повтор создаёт ДУБЛЬ (нет идемпотентности) — в ответе смотрите doubles[].",
+    "Create an applicant card (WRITE operation: POST /applicants). first_name+last_name are required. Resume — as text (externals[].data.body) and/or file IDs from upload_resume. Repeating creates a DUPLICATE (no idempotency) — check doubles[] in the response.",
     createApplicantSchema.shape,
     async (params) => ({ content: [{ type: "text", text: await handleCreateApplicant(params) }] }));
 
   server.tool(
     "attach_applicant_to_vacancy",
-    "Привязать кандидата к вакансии и поставить на этап воронки (операция ЗАПИСИ). Обязательны vacancy + status (ID этапа из list_stages). Для отказа — rejection_reason; для найма — fill_quota + employment_date.",
+    "Attach an applicant to a vacancy and place them on a funnel stage (WRITE operation). vacancy + status (stage ID from list_stages) are required. For rejection — rejection_reason; for hiring — fill_quota + employment_date.",
     attachToVacancySchema.shape,
     async (params) => ({ content: [{ type: "text", text: await handleAttachApplicantToVacancy(params) }] }));
 
   server.tool(
     "upload_resume",
-    "Загрузить файл резюме (операция ЗАПИСИ: multipart). Источник: file_path (локальный путь) ИЛИ content_base64+file_name. parse=true распознаёт CV (вернёт text/fields/photo). id из ответа кладите в create_applicant → externals[].files / photo.",
+    "Upload a resume file (WRITE operation: multipart). Source: file_path (local path) OR content_base64+file_name. parse=true parses the CV (returns text/fields/photo). Put the id from the response into create_applicant → externals[].files / photo.",
     uploadResumeSchema.shape,
     async (params) => ({ content: [{ type: "text", text: await handleUploadResume(params) }] }));
 
   // --- Skills / Prompts (3) ---
 
-  server.prompt("skill-applicants", "Кандидаты на вакансию — показать всех кандидатов, прикреплённых к указанной вакансии.",
-    { account_id: z.string().describe("ID аккаунта"), vacancy_id: z.string().describe("ID вакансии") },
+  server.prompt("skill-applicants", "Applicants for a vacancy — show all applicants attached to the specified vacancy.",
+    { account_id: z.string().describe("Account ID"), vacancy_id: z.string().describe("Vacancy ID") },
     (args) => ({
       messages: [{
         role: "user" as const,
         content: {
           type: "text" as const,
           text: [
-            `Покажи всех кандидатов на вакансию ${args.vacancy_id} в аккаунте ${args.account_id}.`,
-            `Используй list_applicants (account_id=${args.account_id}, vacancy=${args.vacancy_id}); при необходимости листай страницы через page.`,
-            `Расшифруй этапы через list_stages (account_id=${args.account_id}).`,
-            `Для каждого кандидата покажи: имя, email, телефон, текущий этап.`,
-            `Формат: таблица. В конце — сводка: сколько всего, сколько на каждом этапе.`,
+            `Show all applicants for vacancy ${args.vacancy_id} in account ${args.account_id}.`,
+            `Use list_applicants (account_id=${args.account_id}, vacancy=${args.vacancy_id}); page through results via page if needed.`,
+            `Resolve stages via list_stages (account_id=${args.account_id}).`,
+            `For each applicant show: name, email, phone, current stage.`,
+            `Format: a table. At the end — a summary: total count, count per stage.`,
           ].join("\n"),
         },
       }],
     })
   );
 
-  server.prompt("skill-vacancy-stats", "Статистика по вакансии — воронка, сроки, конверсия.",
-    { account_id: z.string().describe("ID аккаунта"), vacancy_id: z.string().describe("ID вакансии") },
+  server.prompt("skill-vacancy-stats", "Vacancy statistics — funnel, timing, conversion.",
+    { account_id: z.string().describe("Account ID"), vacancy_id: z.string().describe("Vacancy ID") },
     (args) => ({
       messages: [{
         role: "user" as const,
         content: {
           type: "text" as const,
           text: [
-            `Покажи статистику по вакансии ${args.vacancy_id} в аккаунте ${args.account_id}.`,
-            `Используй инструменты: get_vacancy, list_stages, list_applicants (vacancy=${args.vacancy_id}, листай page до конца).`,
-            `Собери: название вакансии, дата создания, сколько дней открыта,`,
-            `количество кандидатов на каждом этапе воронки, общая конверсия.`,
-            `Формат: сначала карточка вакансии, потом воронка (этап -> кол-во), потом выводы.`,
+            `Show statistics for vacancy ${args.vacancy_id} in account ${args.account_id}.`,
+            `Use the tools: get_vacancy, list_stages, list_applicants (vacancy=${args.vacancy_id}, page through to the end).`,
+            `Gather: vacancy name, creation date, how many days it has been open,`,
+            `number of applicants at each funnel stage, overall conversion.`,
+            `Format: first the vacancy card, then the funnel (stage -> count), then conclusions.`,
           ].join("\n"),
         },
       }],
     })
   );
 
-  server.prompt("skill-vacancy-analytics", "Аналитика по вакансии: дни в работе, кандидаты на этапах с заказчиком, сроки отправки CV клиенту.",
-    { account_id: z.string().describe("ID аккаунта"), vacancy_id: z.string().describe("ID вакансии") },
+  server.prompt("skill-vacancy-analytics", "Vacancy analytics: days in progress, applicants at customer-facing stages, timing of CV submission to the client.",
+    { account_id: z.string().describe("Account ID"), vacancy_id: z.string().describe("Vacancy ID") },
     (args) => ({
       messages: [{
         role: "user" as const,
         content: {
           type: "text" as const,
           text: [
-            `Собери аналитику по вакансии ${args.vacancy_id} в аккаунте ${args.account_id}. Для сроков используй сегодняшнюю дату.`,
+            `Gather analytics for vacancy ${args.vacancy_id} in account ${args.account_id}. Use today's date for timing calculations.`,
             ``,
-            `1) Дни в работе: get_vacancy (account_id=${args.account_id}, vacancy_id=${args.vacancy_id}) → возьми position и created. created = начало работы по вакансии. Метрика: сегодня − created в календарных днях.`,
+            `1) Days in progress: get_vacancy (account_id=${args.account_id}, vacancy_id=${args.vacancy_id}) → take position and created. created = the start of work on the vacancy. Metric: today − created in calendar days.`,
             ``,
-            `2) Карта этапов: list_stages (account_id=${args.account_id}). Определи по названиям:`,
-            `   - этапы «с заказчиком» — содержат заказчик/клиент/client/customer/hiring manager;`,
-            `   - этап «CV отправлено клиенту» — вроде «отправлен(о) заказчику/клиенту», «CV sent», «представлен клиенту», «submitted to client».`,
-            `   Если однозначно определить нельзя — покажи список этапов и СПРОСИ у пользователя, какие считать «с заказчиком» и какой = «CV отправлено», прежде чем продолжать.`,
+            `2) Stage map: list_stages (account_id=${args.account_id}). Identify by name:`,
+            `   - "customer-facing" stages — names containing these keywords (stages may be named in Russian or English): заказчик / клиент / client / customer / hiring manager;`,
+            `   - the "CV sent to client" stage — names like (Russian or English): «отправлен(о) заказчику/клиенту» / «представлен клиенту» / "CV sent" / "submitted to client".`,
+            `   If it cannot be determined unambiguously — show the list of stages and ASK the user which ones count as "customer-facing" and which one = "CV sent" before continuing.`,
             ``,
-            `3) Кандидаты на этапах с заказчиком: list_applicants (account_id=${args.account_id}, vacancy=${args.vacancy_id}, count=30, page=1), затем листай page до total_pages. У каждого кандидата возьми из links[] звено с vacancy=${args.vacancy_id} → его status (текущий этап). Отбери тех, чей status входит в этапы «с заказчиком». Выведи: сколько всего и список (ФИО, email, текущий этап).`,
+            `3) Applicants at customer-facing stages: list_applicants (account_id=${args.account_id}, vacancy=${args.vacancy_id}, count=30, page=1), then page through to total_pages. For each applicant take from links[] the link with vacancy=${args.vacancy_id} → its status (current stage). Select those whose status is among the "customer-facing" stages. Output: total count and a list (full name, email, current stage).`,
             ``,
-            `4) Сроки отправки CV: ТОЛЬКО для кандидатов, дошедших до этапа «CV отправлено» (или дальше по воронке), вызови list_applicant_comments (account_id=${args.account_id}, applicant_id=<id>, all_types=true) и найди в журнале запись type=STATUS с переходом на этап «CV отправлено» по этой вакансии — возьми её дату (created). Срок = дата отправки − created вакансии (в днях). НЕ запрашивай логи по всем кандидатам подряд (лимит 10 запросов/сек) — только по дошедшим до заказчика. Кому CV ещё не отправляли — отметь.`,
+            `4) CV submission timing: ONLY for applicants who reached the "CV sent" stage (or further down the funnel), call list_applicant_comments (account_id=${args.account_id}, applicant_id=<id>, all_types=true) and find in the log the type=STATUS entry with a transition to the "CV sent" stage for this vacancy — take its date (created). Timing = submission date − vacancy created (in days). Do NOT request logs for every applicant in a row (limit of 10 requests/sec) — only for those who reached the customer. Mark those whose CV has not been sent yet.`,
             ``,
-            `Формат отчёта:`,
-            `- Шапка: вакансия (название, ${args.vacancy_id}), создана <created>, в работе <N> дней.`,
-            `- Кандидаты у заказчика: таблица «кандидат → этап» + итог по этапам.`,
-            `- Сроки CV: таблица «кандидат → дата отправки клиенту → дней от старта» и строка «первый CV отправлен через <N> дней».`,
+            `Report format:`,
+            `- Header: vacancy (name, ${args.vacancy_id}), created <created>, in progress for <N> days.`,
+            `- Applicants with the customer: a "applicant → stage" table + totals per stage.`,
+            `- CV timing: a "applicant → date sent to client → days since start" table and a "first CV sent after <N> days" line.`,
           ].join("\n"),
         },
       }],
@@ -206,13 +206,13 @@ async function main() {
     });
 
     httpServer.listen(PORT, () => {
-      console.error(`[huntflow-mcp] HTTP сервер на порту ${PORT}. POST /mcp, GET /health`);
+      console.error(`[huntflow-mcp] HTTP server on port ${PORT}. POST /mcp, GET /health`);
     });
   } else {
     const transport = new StdioServerTransport();
     await server.connect(transport);
-    console.error(`[huntflow-mcp] Сервер запущен (stdio). ${TOOL_COUNT} инструментов, ${PROMPT_COUNT} скилла.`);
+    console.error(`[huntflow-mcp] Server started (stdio). ${TOOL_COUNT} tools, ${PROMPT_COUNT} skills.`);
   }
 }
 
-main().catch((error) => { console.error("[huntflow-mcp] Ошибка:", error); process.exit(1); });
+main().catch((error) => { console.error("[huntflow-mcp] Error:", error); process.exit(1); });

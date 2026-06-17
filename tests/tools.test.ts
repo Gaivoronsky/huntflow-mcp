@@ -60,8 +60,9 @@ describe("list_vacancies", () => {
   });
 });
 
-describe("search_applicants (текстовый поиск → /applicants/search)", () => {
+describe("search_applicants (text search → /applicants/search)", () => {
   it("hits the search endpoint, passes q, field, count, page", async () => {
+    // Cyrillic "Иван" is intentional here: it verifies the query is URL-encoded (see the %D0%98... assertion below).
     mockOk({ items: [{ id: 5, first_name: "Иван" }], total_items: 1, total_pages: 1 });
     const result = await handleSearchApplicants({ account_id: 42, q: "Иван", field: "all", count: 100, page: 2 });
     const url = mockFetch.mock.calls[0][0] as string;
@@ -83,7 +84,7 @@ describe("search_applicants (текстовый поиск → /applicants/searc
   });
 });
 
-describe("list_applicants (листинг → /applicants с фильтрами)", () => {
+describe("list_applicants (listing → /applicants with filters)", () => {
   it("filters by vacancy and status with pagination", async () => {
     mockOk({ items: [{ id: 7 }], total_items: 1, total_pages: 1 });
     await handleListApplicants({ account_id: 42, vacancy: 46542, status: 4039, count: 30, page: 3 });
@@ -98,14 +99,14 @@ describe("list_applicants (листинг → /applicants с фильтрами)
 
 describe("get_applicant", () => {
   it("calls correct path", async () => {
-    mockOk({ id: 7, first_name: "Мария", last_name: "К" });
+    mockOk({ id: 7, first_name: "Maria", last_name: "K" });
     await handleGetApplicant({ account_id: 42, applicant_id: 7 });
     const url = mockFetch.mock.calls[0][0] as string;
     expect(url).toContain("/accounts/42/applicants/7");
   });
 });
 
-describe("get_applicant_resume (тело CV → /externals/{external_id})", () => {
+describe("get_applicant_resume (CV body → /externals/{external_id})", () => {
   it("calls single-resume endpoint with external_id", async () => {
     mockOk({ id: 4174799, auth_type: "NATIVE", data: { body: "Resume text" } });
     const result = await handleGetApplicantResume({ account_id: 42, applicant_id: 7, external_id: 4174799 });
@@ -115,20 +116,20 @@ describe("get_applicant_resume (тело CV → /externals/{external_id})", () =
   });
 });
 
-describe("list_stages (→ vacancies/statuses, мн.ч.)", () => {
+describe("list_stages (→ vacancies/statuses, plural)", () => {
   it("calls the plural vacancies/statuses endpoint", async () => {
-    mockOk({ items: [{ id: 1, name: "Новый", order: 0 }] });
+    mockOk({ items: [{ id: 1, name: "New", order: 0 }] });
     const result = await handleListStages({ account_id: 42 });
     const url = mockFetch.mock.calls[0][0] as string;
     expect(url).toContain("/accounts/42/vacancies/statuses");
     expect(url).not.toContain("/vacancy/statuses");
-    expect(JSON.parse(result).items[0].name).toBe("Новый");
+    expect(JSON.parse(result).items[0].name).toBe("New");
   });
 });
 
 describe("list_rejection_reasons", () => {
   it("calls /rejection_reasons", async () => {
-    mockOk({ items: [{ id: 4213, name: "Не подошёл по требованиям", order: 1 }] });
+    mockOk({ items: [{ id: 4213, name: "Does not meet requirements", order: 1 }] });
     const result = await handleListRejectionReasons({ account_id: 42 });
     const url = mockFetch.mock.calls[0][0] as string;
     expect(url).toContain("/accounts/42/rejection_reasons");
@@ -146,7 +147,7 @@ describe("list_accounts", () => {
   });
 });
 
-describe("client: заголовки", () => {
+describe("client: headers", () => {
   it("sends Bearer token", async () => {
     mockOk({ items: [] });
     await handleListAccounts();
@@ -163,7 +164,7 @@ describe("client: заголовки", () => {
   });
 });
 
-describe("client: проброс тела ошибки апстрима", () => {
+describe("client: surfacing the upstream error body", () => {
   it("includes errors[].type from the response body in the thrown error", async () => {
     mockErr(400, { errors: [{ type: "bad_user_agent" }] });
     await expect(handleListAccounts()).rejects.toThrow(/bad_user_agent/);
@@ -180,7 +181,7 @@ describe("client: проброс тела ошибки апстрима", () => 
   });
 });
 
-describe("list_applicant_comments (журнал → /logs)", () => {
+describe("list_applicant_comments (log → /logs)", () => {
   it("filters type=COMMENT by default, with pagination", async () => {
     mockOk({ items: [{ id: 20, type: "COMMENT", comment: "ok" }], total_items: 1, total_pages: 1 });
     const result = await handleListApplicantComments({ account_id: 42, applicant_id: 7, all_types: false, count: 50, page: 2 });
@@ -200,7 +201,7 @@ describe("list_applicant_comments (журнал → /logs)", () => {
   });
 });
 
-describe("add_applicant_comment (запись → POST /logs)", () => {
+describe("add_applicant_comment (write → POST /logs)", () => {
   it("POSTs the comment in a JSON body", async () => {
     mockOk({ id: 99, type: "COMMENT", comment: "hi" });
     const result = await handleAddApplicantComment({ account_id: 42, applicant_id: 7, comment: "hi", vacancy: 5 });
@@ -223,17 +224,17 @@ describe("add_applicant_comment (запись → POST /logs)", () => {
   });
 });
 
-describe("create_applicant (запись → POST /applicants)", () => {
-  it("POSTs applicant fields as JSON to /accounts/{id}/applicants (account_id в путь, не в тело)", async () => {
+describe("create_applicant (write → POST /applicants)", () => {
+  it("POSTs applicant fields as JSON to /accounts/{id}/applicants (account_id in the path, not in the body)", async () => {
     mockOk({ id: 555, created: "2026-06-17T10:00:00+03:00", doubles: [] });
     const result = await handleCreateApplicant({
       account_id: 42,
-      first_name: "Иван",
-      last_name: "Петров",
+      first_name: "Ivan",
+      last_name: "Petrov",
       email: "ivan@example.com",
       position: "Backend",
       birthday: "1990-05-01",
-      externals: [{ auth_type: "NATIVE", data: { body: "резюме" }, files: [777] }],
+      externals: [{ auth_type: "NATIVE", data: { body: "resume" }, files: [777] }],
     });
     const [url, opts] = mockFetch.mock.calls[0] as [string, RequestInit];
     expect(url).toContain("/accounts/42/applicants");
@@ -242,33 +243,33 @@ describe("create_applicant (запись → POST /applicants)", () => {
     expect((opts.headers as Record<string, string>)["Content-Type"]).toBe("application/json");
     const body = JSON.parse(opts.body as string);
     expect(body.account_id).toBeUndefined();
-    expect(body.first_name).toBe("Иван");
-    expect(body.last_name).toBe("Петров");
+    expect(body.first_name).toBe("Ivan");
+    expect(body.last_name).toBe("Petrov");
     expect(body.birthday).toBe("1990-05-01");
     expect(body.externals[0].files).toEqual([777]);
-    expect(body.externals[0].data.body).toBe("резюме");
+    expect(body.externals[0].data.body).toBe("resume");
     expect(JSON.parse(result).id).toBe(555);
   });
 
   it("omits undefined optional fields from the body", async () => {
     mockOk({ id: 1, created: "x", doubles: [] });
-    await handleCreateApplicant({ account_id: 42, first_name: "А", last_name: "Б" });
+    await handleCreateApplicant({ account_id: 42, first_name: "A", last_name: "B" });
     const opts = mockFetch.mock.calls[0][1] as RequestInit;
     const body = JSON.parse(opts.body as string);
-    expect(body).toEqual({ first_name: "А", last_name: "Б" });
+    expect(body).toEqual({ first_name: "A", last_name: "B" });
     expect("email" in body).toBe(false);
   });
 
   it("does NOT retry on 5xx (avoids duplicate applicants)", async () => {
     mockErr(500, { errors: [{ type: "server_error" }] });
     await expect(
-      handleCreateApplicant({ account_id: 42, first_name: "А", last_name: "Б" }),
+      handleCreateApplicant({ account_id: 42, first_name: "A", last_name: "B" }),
     ).rejects.toThrow();
     expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 });
 
-describe("attach_applicant_to_vacancy (запись → POST .../{aid}/vacancy)", () => {
+describe("attach_applicant_to_vacancy (write → POST .../{aid}/vacancy)", () => {
   it("POSTs vacancy+status to /accounts/{id}/applicants/{aid}/vacancy", async () => {
     mockOk({ id: 999, vacancy: 46542, status: 4039 });
     const result = await handleAttachApplicantToVacancy({
@@ -276,7 +277,7 @@ describe("attach_applicant_to_vacancy (запись → POST .../{aid}/vacancy)"
       applicant_id: 7,
       vacancy: 46542,
       status: 4039,
-      comment: "первичный отбор",
+      comment: "initial screening",
     });
     const [url, opts] = mockFetch.mock.calls[0] as [string, RequestInit];
     expect(url).toContain("/accounts/42/applicants/7/vacancy");
@@ -286,7 +287,7 @@ describe("attach_applicant_to_vacancy (запись → POST .../{aid}/vacancy)"
     expect(body.applicant_id).toBeUndefined();
     expect(body.vacancy).toBe(46542);
     expect(body.status).toBe(4039);
-    expect(body.comment).toBe("первичный отбор");
+    expect(body.comment).toBe("initial screening");
     expect(JSON.parse(result).id).toBe(999);
   });
 

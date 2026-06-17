@@ -1,21 +1,21 @@
 const BASE_URL = (process.env.HUNTFLOW_BASE_URL || "https://api.huntflow.ru/v2").replace(/\/+$/, "");
-// HuntFlow v2 требует заголовок User-Agent — без него 400 bad_user_agent.
-// Рекомендованный формат: App/version (контактный email). Настраивается через env.
+// HuntFlow v2 requires a User-Agent header — without it you get 400 bad_user_agent.
+// Recommended format: App/version (contact email). Configurable via env.
 const USER_AGENT = process.env.HUNTFLOW_USER_AGENT || "huntflow-mcp/1.5.0 (+https://github.com/Gaivoronsky/huntflow-mcp)";
 const TIMEOUT = 10_000;
-const UPLOAD_TIMEOUT = 30_000; // загрузка+парсинг файла дольше обычного запроса
+const UPLOAD_TIMEOUT = 30_000; // file upload + parsing takes longer than a regular request
 const MAX_RETRIES = 3;
 
 function getToken(): string {
   const token = process.env.HUNTFLOW_TOKEN;
   if (!token) {
-    throw new Error("HUNTFLOW_TOKEN обязателен. Получите в настройках HuntFlow: Настройки → API.");
+    throw new Error("HUNTFLOW_TOKEN is required. Get it in HuntFlow settings: Settings → API.");
   }
   return token;
 }
 
-// HuntFlow возвращает тело ошибки в виде { errors: [{ type, title?, detail?, value? }] }.
-// Достаём человекочитаемую причину, чтобы пробросить её наружу (а не глотать).
+// HuntFlow returns the error body as { errors: [{ type, title?, detail?, value? }] }.
+// We extract a human-readable reason to propagate it outward (instead of swallowing it).
 function extractErrorDetail(body: unknown): string {
   if (body && typeof body === "object" && Array.isArray((body as { errors?: unknown[] }).errors)) {
     const errors = (body as { errors: Array<Record<string, unknown>> }).errors;
@@ -37,35 +37,35 @@ function extractErrorDetail(body: unknown): string {
     try {
       return JSON.stringify(body).slice(0, 500);
     } catch {
-      /* нечитаемое тело */
+      /* unreadable body */
     }
   }
   return "";
 }
 
-// Разбор ответа-ошибки апстрима и проброс человекочитаемой причины наружу.
-// Всегда бросает (never) — общий код для hfRequest и hfUpload.
+// Parses the upstream error response and propagates a human-readable reason outward.
+// Always throws (never) — shared code for hfRequest and hfUpload.
 async function raiseUpstreamError(response: Response): Promise<never> {
   let detail = "";
   try {
     const ct = response.headers?.get?.("content-type") || "";
     detail = extractErrorDetail(ct.includes("json") ? await response.json() : await response.text());
   } catch {
-    /* тело недоступно или не парсится (часто на 5xx) */
+    /* body unavailable or not parseable (often on 5xx) */
   }
 
   if (response.status === 401) {
     throw new Error(
-      `HuntFlow: неверный или истёкший токен (HTTP 401). Проверьте HUNTFLOW_TOKEN${detail ? ` — ${detail}` : ""}.`,
+      `HuntFlow: invalid or expired token (HTTP 401). Check HUNTFLOW_TOKEN${detail ? ` — ${detail}` : ""}.`,
     );
   }
 
   throw new Error(`HuntFlow HTTP ${response.status} ${response.statusText}${detail ? ` — ${detail}` : ""}`);
 }
 
-// Универсальный запрос к HuntFlow API.
-// ВАЖНО: ретраи (429/5xx, abort) применяются ТОЛЬКО к идемпотентным GET-запросам.
-// POST не ретраим намеренно — иначе авто-повтор создаст дубликаты записей (комментариев).
+// Generic request to the HuntFlow API.
+// IMPORTANT: retries (429/5xx, abort) apply ONLY to idempotent GET requests.
+// We deliberately do not retry POST — otherwise an auto-retry would create duplicate records (comments).
 export async function hfRequest(method: string, path: string, body?: unknown): Promise<unknown> {
   const token = getToken();
   const isIdempotent = method.toUpperCase() === "GET";
@@ -92,7 +92,7 @@ export async function hfRequest(method: string, path: string, body?: unknown): P
 
       if (response.ok) return response.json();
 
-      // Ретраи только для GET (429 rate limit / 5xx). Учитываем Retry-After.
+      // Retries only for GET (429 rate limit / 5xx). We honor Retry-After.
       if (isIdempotent && (response.status === 429 || response.status >= 500) && attempt < MAX_RETRIES) {
         const retryAfter = Number(response.headers?.get?.("retry-after"));
         const delay =
@@ -103,26 +103,26 @@ export async function hfRequest(method: string, path: string, body?: unknown): P
         continue;
       }
 
-      // Пробрасываем тело ошибки апстрима.
+      // Propagate the upstream error body.
       await raiseUpstreamError(response);
     } catch (error) {
       clearTimeout(timer);
-      // Таймаут до ответа повторяем только для идемпотентных запросов.
+      // We retry a timeout-before-response only for idempotent requests.
       if (isIdempotent && error instanceof DOMException && error.name === "AbortError" && attempt < MAX_RETRIES) continue;
       throw error;
     }
   }
-  throw new Error("HuntFlow: все попытки исчерпаны");
+  throw new Error("HuntFlow: all retry attempts exhausted");
 }
 
 export function hfGet(path: string): Promise<unknown> {
   return hfRequest("GET", path);
 }
 
-// Загрузка файла (multipart/form-data) — POST /accounts/{id}/upload.
-// Отличия от hfRequest: тело — FormData (поле `file`), Content-Type НЕ ставим вручную
-// (fetch сам проставит multipart/form-data + boundary). X-File-Parse включает распознавание CV.
-// Как и любой POST — НЕ ретраим: повтор создаст дубликат загруженного файла.
+// File upload (multipart/form-data) — POST /accounts/{id}/upload.
+// Differences from hfRequest: the body is FormData (the `file` field), and we do NOT set Content-Type manually
+// (fetch sets multipart/form-data + boundary on its own). X-File-Parse enables CV recognition.
+// Like any POST — we do NOT retry: a repeat would create a duplicate of the uploaded file.
 export async function hfUpload(
   path: string,
   data: Uint8Array,
@@ -135,8 +135,8 @@ export async function hfUpload(
 
   try {
     const form = new FormData();
-    // `as BlobPart`: @types/node 22 сужает ArrayBufferView до ArrayBuffer (не SharedArrayBuffer),
-    // из-за чего обычный Uint8Array не присваивается напрямую. На рантайм не влияет.
+    // `as BlobPart`: @types/node 22 narrows ArrayBufferView to ArrayBuffer (not SharedArrayBuffer),
+    // which is why a plain Uint8Array isn't assignable directly. Has no runtime effect.
     const blob = new Blob([data as BlobPart], { type: opts?.contentType || "application/octet-stream" });
     form.append("file", blob, filename);
 
@@ -157,7 +157,7 @@ export async function hfUpload(
 
     if (response.ok) return response.json();
     await raiseUpstreamError(response);
-    throw new Error("HuntFlow upload: недостижимо"); // raiseUpstreamError всегда бросает
+    throw new Error("HuntFlow upload: unreachable"); // raiseUpstreamError always throws
   } catch (error) {
     clearTimeout(timer);
     throw error;

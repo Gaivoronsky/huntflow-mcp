@@ -2,7 +2,7 @@ import { z } from "zod";
 import { hfGet } from "../client.js";
 
 export const listStagesSchema = z.object({
-  account_id: z.number().describe("ID аккаунта HuntFlow"),
+  account_id: z.number().describe("HuntFlow account ID"),
 });
 
 export async function handleListStages(params: z.infer<typeof listStagesSchema>): Promise<string> {

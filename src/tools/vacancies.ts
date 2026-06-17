@@ -2,10 +2,10 @@ import { z } from "zod";
 import { hfGet } from "../client.js";
 
 export const listVacanciesSchema = z.object({
-  account_id: z.number().describe("ID аккаунта HuntFlow"),
-  opened: z.boolean().default(true).describe("Только открытые вакансии"),
-  count: z.number().int().min(1).max(100).default(30).describe("Кол-во на странице"),
-  page: z.number().int().min(1).default(1).describe("Номер страницы (нумерация с 1)"),
+  account_id: z.number().describe("HuntFlow account ID"),
+  opened: z.boolean().default(true).describe("Only open vacancies"),
+  count: z.number().int().min(1).max(100).default(30).describe("Number of items per page"),
+  page: z.number().int().min(1).default(1).describe("Page number (1-based)"),
 });
 
 export async function handleListVacancies(params: z.infer<typeof listVacanciesSchema>): Promise<string> {
@@ -18,8 +18,8 @@ export async function handleListVacancies(params: z.infer<typeof listVacanciesSc
 }
 
 export const getVacancySchema = z.object({
-  account_id: z.number().describe("ID аккаунта"),
-  vacancy_id: z.number().describe("ID вакансии"),
+  account_id: z.number().describe("Account ID"),
+  vacancy_id: z.number().describe("Vacancy ID"),
 });
 
 export async function handleGetVacancy(params: z.infer<typeof getVacancySchema>): Promise<string> {

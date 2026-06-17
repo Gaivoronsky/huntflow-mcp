@@ -1,12 +1,12 @@
 import { z } from "zod";
 import { hfGet } from "../client.js";
 
-// Тело резюме (CV) доступно только на /externals/{external_id}.
-// Списка externals в v2 нет: external_id берётся из get_applicant → external[].id.
+// The resume (CV) body is only available at /externals/{external_id}.
+// There is no externals list in v2: external_id is taken from get_applicant → external[].id.
 export const getApplicantResumeSchema = z.object({
-  account_id: z.number().describe("ID аккаунта HuntFlow"),
-  applicant_id: z.number().describe("ID кандидата"),
-  external_id: z.number().describe("ID резюме (external). Берётся из get_applicant → external[].id"),
+  account_id: z.number().describe("HuntFlow account ID"),
+  applicant_id: z.number().describe("Applicant ID"),
+  external_id: z.number().describe("Resume ID (external). Taken from get_applicant → external[].id"),
 });
 
 export async function handleGetApplicantResume(params: z.infer<typeof getApplicantResumeSchema>): Promise<string> {

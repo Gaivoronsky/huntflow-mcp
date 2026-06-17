@@ -31,8 +31,8 @@ beforeEach(() => {
 
 describe("upload_resume (multipart → POST /accounts/{id}/upload)", () => {
   it("POSTs multipart FormData with the file field from content_base64", async () => {
-    mockOk({ id: 7777, name: "cv.pdf", text: "распознанный текст", photo: null });
-    const content = Buffer.from("PDF-BYTES-РЕЗЮМЕ").toString("base64");
+    mockOk({ id: 7777, name: "cv.pdf", text: "parsed text", photo: null });
+    const content = Buffer.from("PDF-BYTES-RESUME").toString("base64");
     const result = await handleUploadResume({
       account_id: 42,
       content_base64: content,
@@ -51,7 +51,7 @@ describe("upload_resume (multipart → POST /accounts/{id}/upload)", () => {
     expect(file).toBeTruthy();
     expect(file.name).toBe("cv.pdf");
     const bytes = Buffer.from(await file.arrayBuffer()).toString();
-    expect(bytes).toBe("PDF-BYTES-РЕЗЮМЕ");
+    expect(bytes).toBe("PDF-BYTES-RESUME");
 
     expect(JSON.parse(result).id).toBe(7777);
   });
@@ -96,7 +96,7 @@ describe("upload_resume (multipart → POST /accounts/{id}/upload)", () => {
     mockOk({ id: 2, name: "resume.txt" });
     const dir = await mkdtemp(join(tmpdir(), "hf-upload-"));
     const path = join(dir, "resume.txt");
-    await writeFile(path, "LOCAL-FILE-СОДЕРЖИМОЕ");
+    await writeFile(path, "LOCAL-FILE-CONTENT");
 
     await handleUploadResume({ account_id: 42, file_path: path, parse: true });
 
@@ -104,7 +104,7 @@ describe("upload_resume (multipart → POST /accounts/{id}/upload)", () => {
     const file = (fd.body as FormData).get("file") as File;
     expect(file.name).toBe("resume.txt");
     const bytes = Buffer.from(await file.arrayBuffer()).toString();
-    expect(bytes).toBe("LOCAL-FILE-СОДЕРЖИМОЕ");
+    expect(bytes).toBe("LOCAL-FILE-CONTENT");
   });
 
   it("rejects when neither file_path nor content_base64 is given", async () => {
