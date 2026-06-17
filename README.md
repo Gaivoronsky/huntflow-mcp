@@ -1,6 +1,6 @@
 # huntflow-mcp
 
-MCP-сервер для [HuntFlow](https://huntflow.ru) ATS API v2 — вакансии, кандидаты, резюме, этапы воронки, причины отказа, комментарии, аккаунты. **11 инструментов, 3 промпта.**
+MCP-сервер для [HuntFlow](https://huntflow.ru) ATS API v2 — вакансии, кандидаты, резюме, этапы воронки, причины отказа, комментарии, аккаунты. **14 инструментов, 3 промпта.**
 
 [![npm](https://img.shields.io/npm/v/@gaivoronsky/huntflow-mcp)](https://www.npmjs.com/package/@gaivoronsky/huntflow-mcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -67,7 +67,7 @@ HUNTFLOW_TOKEN=ваш-токен node dist/index.js --http
 | `HUNTFLOW_USER_AGENT` | нет | Заголовок `User-Agent` (HuntFlow его требует). Дефолт `huntflow-mcp/<версия> (+repo)`; рекомендуется указать контактный email |
 | `PORT` | нет | Порт HTTP-сервера (по умолчанию 3000) |
 
-## Инструменты (11)
+## Инструменты (14)
 
 | Инструмент | Описание |
 |------------|----------|
@@ -82,6 +82,9 @@ HUNTFLOW_TOKEN=ваш-токен node dist/index.js --http
 | `list_rejection_reasons` | Справочник причин отказа: код → название |
 | `list_applicant_comments` | Комментарии о кандидате (журнал, по умолчанию `type=COMMENT`) |
 | `add_applicant_comment` | ✍️ Добавить комментарий (**запись**; правка/удаление через API HuntFlow недоступны) |
+| `create_applicant` | ✍️ Создать карточку кандидата (**запись**; `first_name`+`last_name` обязательны, резюме текстом/файлами; повтор → дубль, см. `doubles[]`) |
+| `attach_applicant_to_vacancy` | ✍️ Привязать кандидата к вакансии и поставить на этап (**запись**; `vacancy`+`status` обязательны) |
+| `upload_resume` | ✍️ Загрузить файл резюме (**запись**, multipart; `file_path` или `content_base64`; `parse` распознаёт CV) |
 
 ## Промпты (3)
 

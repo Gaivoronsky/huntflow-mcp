@@ -1,8 +1,9 @@
 const BASE_URL = (process.env.HUNTFLOW_BASE_URL || "https://api.huntflow.ru/v2").replace(/\/+$/, "");
 // HuntFlow v2 требует заголовок User-Agent — без него 400 bad_user_agent.
 // Рекомендованный формат: App/version (контактный email). Настраивается через env.
-const USER_AGENT = process.env.HUNTFLOW_USER_AGENT || "huntflow-mcp/1.3.0 (+https://github.com/theYahia/huntflow-mcp)";
+const USER_AGENT = process.env.HUNTFLOW_USER_AGENT || "huntflow-mcp/1.5.0 (+https://github.com/Gaivoronsky/huntflow-mcp)";
 const TIMEOUT = 10_000;
+const UPLOAD_TIMEOUT = 30_000; // загрузка+парсинг файла дольше обычного запроса
 const MAX_RETRIES = 3;
 
 function getToken(): string {
@@ -40,6 +41,26 @@ function extractErrorDetail(body: unknown): string {
     }
   }
   return "";
+}
+
+// Разбор ответа-ошибки апстрима и проброс человекочитаемой причины наружу.
+// Всегда бросает (never) — общий код для hfRequest и hfUpload.
+async function raiseUpstreamError(response: Response): Promise<never> {
+  let detail = "";
+  try {
+    const ct = response.headers?.get?.("content-type") || "";
+    detail = extractErrorDetail(ct.includes("json") ? await response.json() : await response.text());
+  } catch {
+    /* тело недоступно или не парсится (часто на 5xx) */
+  }
+
+  if (response.status === 401) {
+    throw new Error(
+      `HuntFlow: неверный или истёкший токен (HTTP 401). Проверьте HUNTFLOW_TOKEN${detail ? ` — ${detail}` : ""}.`,
+    );
+  }
+
+  throw new Error(`HuntFlow HTTP ${response.status} ${response.statusText}${detail ? ` — ${detail}` : ""}`);
 }
 
 // Универсальный запрос к HuntFlow API.
@@ -83,21 +104,7 @@ export async function hfRequest(method: string, path: string, body?: unknown): P
       }
 
       // Пробрасываем тело ошибки апстрима.
-      let detail = "";
-      try {
-        const ct = response.headers?.get?.("content-type") || "";
-        detail = extractErrorDetail(ct.includes("json") ? await response.json() : await response.text());
-      } catch {
-        /* тело недоступно или не парсится (часто на 5xx) */
-      }
-
-      if (response.status === 401) {
-        throw new Error(
-          `HuntFlow: неверный или истёкший токен (HTTP 401). Проверьте HUNTFLOW_TOKEN${detail ? ` — ${detail}` : ""}.`,
-        );
-      }
-
-      throw new Error(`HuntFlow HTTP ${response.status} ${response.statusText}${detail ? ` — ${detail}` : ""}`);
+      await raiseUpstreamError(response);
     } catch (error) {
       clearTimeout(timer);
       // Таймаут до ответа повторяем только для идемпотентных запросов.
@@ -110,4 +117,49 @@ export async function hfRequest(method: string, path: string, body?: unknown): P
 
 export function hfGet(path: string): Promise<unknown> {
   return hfRequest("GET", path);
+}
+
+// Загрузка файла (multipart/form-data) — POST /accounts/{id}/upload.
+// Отличия от hfRequest: тело — FormData (поле `file`), Content-Type НЕ ставим вручную
+// (fetch сам проставит multipart/form-data + boundary). X-File-Parse включает распознавание CV.
+// Как и любой POST — НЕ ретраим: повтор создаст дубликат загруженного файла.
+export async function hfUpload(
+  path: string,
+  data: Uint8Array,
+  filename: string,
+  opts?: { parse?: boolean; contentType?: string },
+): Promise<unknown> {
+  const token = getToken();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT);
+
+  try {
+    const form = new FormData();
+    // `as BlobPart`: @types/node 22 сужает ArrayBufferView до ArrayBuffer (не SharedArrayBuffer),
+    // из-за чего обычный Uint8Array не присваивается напрямую. На рантайм не влияет.
+    const blob = new Blob([data as BlobPart], { type: opts?.contentType || "application/octet-stream" });
+    form.append("file", blob, filename);
+
+    const headers: Record<string, string> = {
+      "Authorization": `Bearer ${token}`,
+      "Accept": "application/json",
+      "User-Agent": USER_AGENT,
+    };
+    if (opts?.parse) headers["X-File-Parse"] = "true";
+
+    const response = await fetch(`${BASE_URL}${path}`, {
+      method: "POST",
+      headers,
+      body: form,
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+
+    if (response.ok) return response.json();
+    await raiseUpstreamError(response);
+    throw new Error("HuntFlow upload: недостижимо"); // raiseUpstreamError всегда бросает
+  } catch (error) {
+    clearTimeout(timer);
+    throw error;
+  }
 }

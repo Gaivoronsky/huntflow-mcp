@@ -14,6 +14,7 @@ import { handleListStages } from "../src/tools/stages.js";
 import { handleListRejectionReasons } from "../src/tools/rejection_reasons.js";
 import { handleListApplicantComments, handleAddApplicantComment } from "../src/tools/comments.js";
 import { handleListAccounts } from "../src/tools/accounts.js";
+import { handleCreateApplicant, handleAttachApplicantToVacancy } from "../src/tools/applicants_write.js";
 
 function mockOk(data: unknown) {
   mockFetch.mockResolvedValueOnce({
@@ -217,6 +218,82 @@ describe("add_applicant_comment (запись → POST /logs)", () => {
     mockErr(500, { errors: [{ type: "server_error" }] });
     await expect(
       handleAddApplicantComment({ account_id: 42, applicant_id: 7, comment: "x" }),
+    ).rejects.toThrow();
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("create_applicant (запись → POST /applicants)", () => {
+  it("POSTs applicant fields as JSON to /accounts/{id}/applicants (account_id в путь, не в тело)", async () => {
+    mockOk({ id: 555, created: "2026-06-17T10:00:00+03:00", doubles: [] });
+    const result = await handleCreateApplicant({
+      account_id: 42,
+      first_name: "Иван",
+      last_name: "Петров",
+      email: "ivan@example.com",
+      position: "Backend",
+      birthday: "1990-05-01",
+      externals: [{ auth_type: "NATIVE", data: { body: "резюме" }, files: [777] }],
+    });
+    const [url, opts] = mockFetch.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain("/accounts/42/applicants");
+    expect(url).not.toContain("/search");
+    expect(opts.method).toBe("POST");
+    expect((opts.headers as Record<string, string>)["Content-Type"]).toBe("application/json");
+    const body = JSON.parse(opts.body as string);
+    expect(body.account_id).toBeUndefined();
+    expect(body.first_name).toBe("Иван");
+    expect(body.last_name).toBe("Петров");
+    expect(body.birthday).toBe("1990-05-01");
+    expect(body.externals[0].files).toEqual([777]);
+    expect(body.externals[0].data.body).toBe("резюме");
+    expect(JSON.parse(result).id).toBe(555);
+  });
+
+  it("omits undefined optional fields from the body", async () => {
+    mockOk({ id: 1, created: "x", doubles: [] });
+    await handleCreateApplicant({ account_id: 42, first_name: "А", last_name: "Б" });
+    const opts = mockFetch.mock.calls[0][1] as RequestInit;
+    const body = JSON.parse(opts.body as string);
+    expect(body).toEqual({ first_name: "А", last_name: "Б" });
+    expect("email" in body).toBe(false);
+  });
+
+  it("does NOT retry on 5xx (avoids duplicate applicants)", async () => {
+    mockErr(500, { errors: [{ type: "server_error" }] });
+    await expect(
+      handleCreateApplicant({ account_id: 42, first_name: "А", last_name: "Б" }),
+    ).rejects.toThrow();
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("attach_applicant_to_vacancy (запись → POST .../{aid}/vacancy)", () => {
+  it("POSTs vacancy+status to /accounts/{id}/applicants/{aid}/vacancy", async () => {
+    mockOk({ id: 999, vacancy: 46542, status: 4039 });
+    const result = await handleAttachApplicantToVacancy({
+      account_id: 42,
+      applicant_id: 7,
+      vacancy: 46542,
+      status: 4039,
+      comment: "первичный отбор",
+    });
+    const [url, opts] = mockFetch.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain("/accounts/42/applicants/7/vacancy");
+    expect(opts.method).toBe("POST");
+    const body = JSON.parse(opts.body as string);
+    expect(body.account_id).toBeUndefined();
+    expect(body.applicant_id).toBeUndefined();
+    expect(body.vacancy).toBe(46542);
+    expect(body.status).toBe(4039);
+    expect(body.comment).toBe("первичный отбор");
+    expect(JSON.parse(result).id).toBe(999);
+  });
+
+  it("does NOT retry on 5xx", async () => {
+    mockErr(500, { errors: [{ type: "server_error" }] });
+    await expect(
+      handleAttachApplicantToVacancy({ account_id: 42, applicant_id: 7, vacancy: 1, status: 2 }),
     ).rejects.toThrow();
     expect(mockFetch).toHaveBeenCalledTimes(1);
   });

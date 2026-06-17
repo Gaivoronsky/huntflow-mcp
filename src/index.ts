@@ -22,15 +22,22 @@ import {
   handleAddApplicantComment,
 } from "./tools/comments.js";
 import { listAccountsSchema, handleListAccounts } from "./tools/accounts.js";
+import {
+  createApplicantSchema,
+  handleCreateApplicant,
+  attachToVacancySchema,
+  handleAttachApplicantToVacancy,
+} from "./tools/applicants_write.js";
+import { uploadResumeSchema, handleUploadResume } from "./tools/uploads.js";
 
-const VERSION = "1.4.0";
-const TOOL_COUNT = 11;
+const VERSION = "1.5.0";
+const TOOL_COUNT = 14;
 const PROMPT_COUNT = 3;
 
 export function createServer(): McpServer {
   const server = new McpServer({ name: "huntflow-mcp", version: VERSION });
 
-  // --- Tools (11) ---
+  // --- Tools (14) ---
 
   server.tool("list_accounts", "Список доступных аккаунтов HuntFlow.", listAccountsSchema.shape,
     async () => ({ content: [{ type: "text", text: await handleListAccounts() }] }));
@@ -79,6 +86,24 @@ export function createServer(): McpServer {
     "Добавить комментарий кандидату (операция ЗАПИСИ: создаёт запись в журнале; отредактировать/удалить через API нельзя).",
     addApplicantCommentSchema.shape,
     async (params) => ({ content: [{ type: "text", text: await handleAddApplicantComment(params) }] }));
+
+  server.tool(
+    "create_applicant",
+    "Создать карточку кандидата (операция ЗАПИСИ: POST /applicants). Обязательны first_name+last_name. Резюме — текстом (externals[].data.body) и/или ID файлов из upload_resume. Повтор создаёт ДУБЛЬ (нет идемпотентности) — в ответе смотрите doubles[].",
+    createApplicantSchema.shape,
+    async (params) => ({ content: [{ type: "text", text: await handleCreateApplicant(params) }] }));
+
+  server.tool(
+    "attach_applicant_to_vacancy",
+    "Привязать кандидата к вакансии и поставить на этап воронки (операция ЗАПИСИ). Обязательны vacancy + status (ID этапа из list_stages). Для отказа — rejection_reason; для найма — fill_quota + employment_date.",
+    attachToVacancySchema.shape,
+    async (params) => ({ content: [{ type: "text", text: await handleAttachApplicantToVacancy(params) }] }));
+
+  server.tool(
+    "upload_resume",
+    "Загрузить файл резюме (операция ЗАПИСИ: multipart). Источник: file_path (локальный путь) ИЛИ content_base64+file_name. parse=true распознаёт CV (вернёт text/fields/photo). id из ответа кладите в create_applicant → externals[].files / photo.",
+    uploadResumeSchema.shape,
+    async (params) => ({ content: [{ type: "text", text: await handleUploadResume(params) }] }));
 
   // --- Skills / Prompts (3) ---
 
