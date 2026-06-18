@@ -1,7 +1,7 @@
 const BASE_URL = (process.env.HUNTFLOW_BASE_URL || "https://api.huntflow.ru/v2").replace(/\/+$/, "");
 // HuntFlow v2 requires a User-Agent header — without it you get 400 bad_user_agent.
 // Recommended format: App/version (contact email). Configurable via env.
-const USER_AGENT = process.env.HUNTFLOW_USER_AGENT || "huntflow-mcp/1.5.0 (+https://github.com/Gaivoronsky/huntflow-mcp)";
+const USER_AGENT = process.env.HUNTFLOW_USER_AGENT || "huntflow-mcp/1.5.1 (+https://github.com/Gaivoronsky/huntflow-mcp)";
 const TIMEOUT = 10_000;
 const UPLOAD_TIMEOUT = 30_000; // file upload + parsing takes longer than a regular request
 const MAX_RETRIES = 3;

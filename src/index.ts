@@ -30,7 +30,7 @@ import {
 } from "./tools/applicants_write.js";
 import { uploadResumeSchema, handleUploadResume } from "./tools/uploads.js";
 
-const VERSION = "1.5.0";
+const VERSION = "1.5.1";
 const TOOL_COUNT = 14;
 const PROMPT_COUNT = 3;
 
