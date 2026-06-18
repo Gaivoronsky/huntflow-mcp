@@ -1,6 +1,6 @@
 # huntflow-mcp
 
-MCP server for [HuntFlow](https://huntflow.ru) ATS API v2 — vacancies, candidates, resumes, funnel stages, rejection reasons, comments, accounts. **14 tools, 3 prompts.**
+MCP server for [HuntFlow](https://huntflow.ru) ATS API v2 — vacancies, candidates, resumes, funnel stages, rejection reasons, comments, accounts. **16 tools, 3 prompts.**
 
 [![npm](https://img.shields.io/npm/v/@gaivoronsky/huntflow-mcp)](https://www.npmjs.com/package/@gaivoronsky/huntflow-mcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -67,7 +67,7 @@ HUNTFLOW_TOKEN=your-token node dist/index.js --http
 | `HUNTFLOW_USER_AGENT` | no | The `User-Agent` header (HuntFlow requires it). Default `huntflow-mcp/<version> (+repo)`; a contact email is recommended |
 | `PORT` | no | HTTP server port (defaults to 3000) |
 
-## Tools (14)
+## Tools (16)
 
 | Tool | Description |
 |------------|----------|
@@ -80,11 +80,13 @@ HUNTFLOW_TOKEN=your-token node dist/index.js --http
 | `get_applicant_resume` | Resume (CV) with body by `external_id` (from `get_applicant`) |
 | `list_stages` | Recruiting funnel stages (statuses): code → name |
 | `list_rejection_reasons` | Reference list of rejection reasons: code → name |
+| `list_account_sources` | Resume sources (e.g. `RG`, `HeadHunter`): id → name/type. Use the id for `account_source` |
 | `list_applicant_comments` | Comments about a candidate (log, defaults to `type=COMMENT`) |
 | `add_applicant_comment` | ✍️ Add a comment (**write**; editing/deletion is not available through the HuntFlow API) |
 | `create_applicant` | ✍️ Create a candidate card (**write**; `first_name`+`last_name` are required, resume as text/files; a repeat → duplicate, see `doubles[]`) |
 | `attach_applicant_to_vacancy` | ✍️ Attach a candidate to a vacancy and place them on a stage (**write**; `vacancy`+`status` are required) |
 | `upload_resume` | ✍️ Upload a resume file (**write**, multipart; `file_path` or `content_base64`; `parse` recognizes the CV) |
+| `update_applicant_external` | ✍️ Update an existing resume/external (**write**, PUT): source, text, files (by `external_id`) |
 
 ## Prompts (3)
 

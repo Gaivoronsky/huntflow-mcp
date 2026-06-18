@@ -9,8 +9,14 @@ import { hfRequest } from "../client.js";
 // Resume inside the card (externals[]). files — an array of INTEGER IDs of uploaded files
 // (from upload_resume → id). Confirmed against the live OpenAPI (ApplicantResumeCreate).
 const externalSchema = z.object({
-  auth_type: z.string().optional().describe("Resume source type, e.g. NATIVE"),
-  account_source: z.number().optional().describe("Resume source ID"),
+  auth_type: z
+    .string()
+    .optional()
+    .describe('Resume origin type. Use "NATIVE" for files uploaded via upload_resume (the default). Do NOT put the source name here — the source goes in account_source.'),
+  account_source: z
+    .number()
+    .optional()
+    .describe("Source ID — numeric id from list_account_sources (e.g. resolve a source named \"RG\" to its id). NOT a string name."),
   files: z.array(z.number()).optional().describe("IDs of uploaded files (from upload_resume → id)"),
   data: z
     .object({ body: z.string().optional().describe("Resume text") })
@@ -57,6 +63,14 @@ export async function handleCreateApplicant(
   for (const [key, value] of Object.entries(rest)) {
     if (value !== undefined) body[key] = value;
   }
+  // Default auth_type to "NATIVE" for each resume (files uploaded via upload_resume are native).
+  // The source belongs in account_source (numeric), not auth_type — a common mix-up.
+  if (Array.isArray(body.externals)) {
+    body.externals = (body.externals as Array<Record<string, unknown>>).map(({ auth_type, ...ext }) => ({
+      auth_type: auth_type ?? "NATIVE",
+      ...ext,
+    }));
+  }
   const result = await hfRequest("POST", `/accounts/${account_id}/applicants`, body);
   return JSON.stringify(result, null, 2);
 }
@@ -89,6 +103,37 @@ export async function handleAttachApplicantToVacancy(
     "POST",
     `/accounts/${account_id}/applicants/${applicant_id}/vacancy`,
     body,
+  );
+  return JSON.stringify(result, null, 2);
+}
+
+// Update an EXISTING resume (external) of an applicant: PUT .../externals/{external_id}.
+// Use to fix the source (account_source) or replace the resume text/files on a card that
+// ALREADY has a resume. external_id comes from get_applicant → external[].id.
+// NOTE: the HuntFlow v2 API has no endpoint to ADD a brand-new resume to an applicant created
+// without one — a resume can only be attached at creation (create_applicant → externals[]).
+export const updateApplicantExternalSchema = z.object({
+  account_id: z.number().describe("HuntFlow account ID"),
+  applicant_id: z.number().describe("Applicant ID"),
+  external_id: z.number().describe("Resume (external) ID — from get_applicant → external[].id"),
+  account_source: z.number().describe("Source ID (required) — numeric id from list_account_sources"),
+  body: z.string().describe("Resume text (required) — maps to data.body"),
+  files: z.array(z.number()).optional().describe("IDs of attached files (from upload_resume → id)"),
+});
+
+export async function handleUpdateApplicantExternal(
+  params: z.infer<typeof updateApplicantExternalSchema>,
+): Promise<string> {
+  const { account_id, applicant_id, external_id, account_source, body: resumeBody, files } = params;
+  const payload: Record<string, unknown> = {
+    account_source,
+    data: { body: resumeBody },
+  };
+  if (files !== undefined) payload.files = files;
+  const result = await hfRequest(
+    "PUT",
+    `/accounts/${account_id}/applicants/${applicant_id}/externals/${external_id}`,
+    payload,
   );
   return JSON.stringify(result, null, 2);
 }

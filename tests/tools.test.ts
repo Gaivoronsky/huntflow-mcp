@@ -14,7 +14,12 @@ import { handleListStages } from "../src/tools/stages.js";
 import { handleListRejectionReasons } from "../src/tools/rejection_reasons.js";
 import { handleListApplicantComments, handleAddApplicantComment } from "../src/tools/comments.js";
 import { handleListAccounts } from "../src/tools/accounts.js";
-import { handleCreateApplicant, handleAttachApplicantToVacancy } from "../src/tools/applicants_write.js";
+import {
+  handleCreateApplicant,
+  handleAttachApplicantToVacancy,
+  handleUpdateApplicantExternal,
+} from "../src/tools/applicants_write.js";
+import { handleListAccountSources } from "../src/tools/sources.js";
 
 function mockOk(data: unknown) {
   mockFetch.mockResolvedValueOnce({
@@ -295,6 +300,92 @@ describe("attach_applicant_to_vacancy (write → POST .../{aid}/vacancy)", () =>
     mockErr(500, { errors: [{ type: "server_error" }] });
     await expect(
       handleAttachApplicantToVacancy({ account_id: 42, applicant_id: 7, vacancy: 1, status: 2 }),
+    ).rejects.toThrow();
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("create_applicant externals auth_type", () => {
+  it("defaults externals[].auth_type to NATIVE when omitted", async () => {
+    mockOk({ id: 1, created: "x", doubles: [] });
+    await handleCreateApplicant({
+      account_id: 42,
+      first_name: "A",
+      last_name: "B",
+      externals: [{ account_source: 555, files: [777], data: { body: "cv" } }],
+    });
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body as string);
+    expect(body.externals[0].auth_type).toBe("NATIVE");
+    expect(body.externals[0].account_source).toBe(555);
+    expect(body.externals[0].files).toEqual([777]);
+  });
+
+  it("keeps an explicit externals[].auth_type", async () => {
+    mockOk({ id: 1, created: "x", doubles: [] });
+    await handleCreateApplicant({
+      account_id: 42,
+      first_name: "A",
+      last_name: "B",
+      externals: [{ auth_type: "HH", files: [1] }],
+    });
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body as string);
+    expect(body.externals[0].auth_type).toBe("HH");
+  });
+});
+
+describe("list_account_sources (→ /applicants/sources)", () => {
+  it("GETs the sources endpoint", async () => {
+    mockOk({ items: [{ id: 555, name: "RG", type: "user", foreign: null }] });
+    const result = await handleListAccountSources({ account_id: 42 });
+    const url = mockFetch.mock.calls[0][0] as string;
+    expect(url).toContain("/accounts/42/applicants/sources");
+    expect(JSON.parse(result).items[0].name).toBe("RG");
+    expect(JSON.parse(result).items[0].id).toBe(555);
+  });
+});
+
+describe("update_applicant_external (write → PUT .../externals/{id})", () => {
+  it("PUTs account_source + data.body + files to the external", async () => {
+    mockOk({ id: 4174799, account_source: 555 });
+    const result = await handleUpdateApplicantExternal({
+      account_id: 42,
+      applicant_id: 7,
+      external_id: 4174799,
+      account_source: 555,
+      body: "resume text",
+      files: [777],
+    });
+    const [url, opts] = mockFetch.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain("/accounts/42/applicants/7/externals/4174799");
+    expect(opts.method).toBe("PUT");
+    const payload = JSON.parse(opts.body as string);
+    expect(payload.account_id).toBeUndefined();
+    expect(payload.applicant_id).toBeUndefined();
+    expect(payload.external_id).toBeUndefined();
+    expect(payload.account_source).toBe(555);
+    expect(payload.data).toEqual({ body: "resume text" });
+    expect(payload.files).toEqual([777]);
+    expect(JSON.parse(result).id).toBe(4174799);
+  });
+
+  it("omits files when not provided", async () => {
+    mockOk({ id: 1 });
+    await handleUpdateApplicantExternal({
+      account_id: 42,
+      applicant_id: 7,
+      external_id: 9,
+      account_source: 555,
+      body: "x",
+    });
+    const payload = JSON.parse(mockFetch.mock.calls[0][1].body as string);
+    expect("files" in payload).toBe(false);
+    expect(payload.data.body).toBe("x");
+  });
+
+  it("does NOT retry on 5xx", async () => {
+    mockErr(500, { errors: [{ type: "server_error" }] });
+    await expect(
+      handleUpdateApplicantExternal({ account_id: 42, applicant_id: 7, external_id: 9, account_source: 1, body: "x" }),
     ).rejects.toThrow();
     expect(mockFetch).toHaveBeenCalledTimes(1);
   });

@@ -27,17 +27,20 @@ import {
   handleCreateApplicant,
   attachToVacancySchema,
   handleAttachApplicantToVacancy,
+  updateApplicantExternalSchema,
+  handleUpdateApplicantExternal,
 } from "./tools/applicants_write.js";
 import { uploadResumeSchema, handleUploadResume } from "./tools/uploads.js";
+import { listAccountSourcesSchema, handleListAccountSources } from "./tools/sources.js";
 
-const VERSION = "1.5.1";
-const TOOL_COUNT = 14;
+const VERSION = "1.6.0";
+const TOOL_COUNT = 16;
 const PROMPT_COUNT = 3;
 
 export function createServer(): McpServer {
   const server = new McpServer({ name: "huntflow-mcp", version: VERSION });
 
-  // --- Tools (14) ---
+  // --- Tools (16) ---
 
   server.tool("list_accounts", "List of available HuntFlow accounts.", listAccountsSchema.shape,
     async () => ({ content: [{ type: "text", text: await handleListAccounts() }] }));
@@ -76,6 +79,12 @@ export function createServer(): McpServer {
     async (params) => ({ content: [{ type: "text", text: await handleListRejectionReasons(params) }] }));
 
   server.tool(
+    "list_account_sources",
+    "Applicant resume sources (e.g. \"RG\", \"HeadHunter\"): id → name/type. Use the numeric id for create_applicant → externals[].account_source and update_applicant_external.",
+    listAccountSourcesSchema.shape,
+    async (params) => ({ content: [{ type: "text", text: await handleListAccountSources(params) }] }));
+
+  server.tool(
     "list_applicant_comments",
     "Comments about an applicant (log, by default only type=COMMENT). Pagination page/count≤100.",
     listApplicantCommentsSchema.shape,
@@ -104,6 +113,12 @@ export function createServer(): McpServer {
     "Upload a resume file (WRITE operation: multipart). Source: file_path (local path) OR content_base64+file_name. parse=true parses the CV (returns text/fields/photo). Put the id from the response into create_applicant → externals[].files / photo.",
     uploadResumeSchema.shape,
     async (params) => ({ content: [{ type: "text", text: await handleUploadResume(params) }] }));
+
+  server.tool(
+    "update_applicant_external",
+    "Update an EXISTING resume (external) of an applicant (WRITE operation: PUT). Set the source (account_source from list_account_sources), resume text (body) and/or files. external_id comes from get_applicant → external[].id. NOTE: there is no API to ADD a new resume to an applicant created without one — attach the resume at creation via create_applicant → externals[].",
+    updateApplicantExternalSchema.shape,
+    async (params) => ({ content: [{ type: "text", text: await handleUpdateApplicantExternal(params) }] }));
 
   // --- Skills / Prompts (3) ---
 
